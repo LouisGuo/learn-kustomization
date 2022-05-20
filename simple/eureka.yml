@@ -1,0 +1,117 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: eureka-service-internal
+  
+  labels:
+    app: eureka-service-internal
+
+spec:
+  ports:
+    - protocol: TCP
+      port: 8761
+      targetPort: 8761
+      nodePort: 30114
+  selector:
+    app: eureka
+    
+  type: NodePort
+  sessionAffinity: None
+  externalTrafficPolicy: Cluster
+  ipFamilies:
+    - IPv4
+  ipFamilyPolicy: SingleStack
+
+
+
+kind: StatefulSet
+apiVersion: apps/v1
+metadata:
+  name: eureka
+#  namespace: test-pms
+  labels:
+    app: eureka
+    spec:
+    
+  replicas: 3
+  selector:
+    matchLabels:
+      app: eureka
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: eureka
+    spec:
+      containers:
+        - name: eureka
+          image: '192.168.105.48/test-pms/test-eureka:SNAPSHOT-52'
+          ports:
+            - name: server
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: MY_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            - name: APPLICATION_ENVIRONMENT
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: EUREKA_USERNAME
+              value: liveyu
+            - name: EUREKA_PASSWORD
+              value: '123456'
+            - name: EUREKA_APPLICATION_NAME
+              value: eureka
+            - name: EUREKA_IN_SERVICE_NAME
+              value: eureka-service-internal
+            - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: EUREKA_REPLICAS
+              value: '3'
+          resources:
+            limits:
+              cpu: '1'
+              memory: 2Gi
+            requests:
+              cpu: 500m
+              memory: 1Gi
+              
+          terminationMessagePolicy: File
+          imagePullPolicy: Always
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 10
+      dnsPolicy: ClusterFirst
+      securityContext: {}
+      imagePullSecrets:
+        - name: harbor-secret
+      schedulerName: default-scheduler
+  serviceName: eureka-service-internal
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      partition: 0
+  revisionHistoryLimit: 10
